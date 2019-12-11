@@ -1,6 +1,8 @@
 ---
 - hosts: all
   become: true
+  vars_files:
+    - vars/default.yml
 
   tasks:
     - name: Install aptitude using apt
@@ -43,9 +45,9 @@
     - name: get nginx files
       get_url: url={{ item }} dest=/usr/nginx
       with_items:
-        - 'https://gist.githubusercontent.com/yishait/a95aca6d6a84c42e62227e633c5acbc1/raw/9022cae7a4170b1dff3bb49959d200d48f033e6d/Dockerfile'
-        - 'https://gist.githubusercontent.com/yishait/a95aca6d6a84c42e62227e633c5acbc1/raw/c04cf6942cd512641c10fbb250f9f493bb3b3804/default.conf'
-        - 'https://gist.githubusercontent.com/yishait/a95aca6d6a84c42e62227e633c5acbc1/raw/9022cae7a4170b1dff3bb49959d200d48f033e6d/nginx.conf'
+        - 'https://gist.githubusercontent.com/yishait/a95aca6d6a84c42e62227e633c5acbc1/raw/b17dd9257f844f5d97aa97d72c0597b742cd0dd0/Dockerfile'
+        - 'https://gist.githubusercontent.com/yishait/a95aca6d6a84c42e62227e633c5acbc1/raw/321a903978d49f02d7a2e737e7bf403233f8572d/default.conf'
+        - 'https://gist.githubusercontent.com/yishait/a95aca6d6a84c42e62227e633c5acbc1/raw/42d321138ce16233e9e0675f364c3c2da8fbc832/nginx.conf'
 
     - name: get node 1 files
       get_url: url={{ item }} dest=/usr/web1
@@ -62,8 +64,6 @@
     - name: Create my_docker_network with custom IPAM config
       docker_network:
         name: my_docker_network
-        ipam_config:
-          - subnet: 172.20.0.0/16
 
     - name: build Nginx from dockerfile
       docker_image:
@@ -85,24 +85,7 @@
 
 ##########################################################################
 ##                        start applications                            ##
-##########################################################################          
-    
-    - name: start container with healthcheck
-      docker_container:
-        name: nginx-lb
-        image: nginx:latest
-        state: started
-        restart: yes
-        published_ports:
-          - 80:80
-        networks:
-          - name: my_docker_network
-        healthcheck:
-          test: ["CMD", "curl", "--fail", "http://nginx.host.com"]
-          interval: 1m30s
-          timeout: 10s
-          retries: 3
-          start_period: 30s
+##########################################################################
 
     - name: start node 1 container
       docker_container:
@@ -119,3 +102,25 @@
         state: started
         networks:
           - name: my_docker_network
+
+    - name: start container with healthcheck
+      docker_container:
+        name: nginx-lb
+        image: nginx:latest
+        state: started
+        published_ports:
+          - 80:80
+        networks:
+          - name: my_docker_network
+        healthcheck:
+          test: ["CMD", "curl", "--fail", "http://nginx.host.com"]
+          interval: 1m30s
+          timeout: 10s
+          retries: 3
+          start_period: 30s
+
+    - name: Remove logs and reload nginx
+      command: docker exec nginx-lb rm -rf /var/log/nginx/*
+
+    - name: Remove logs and reload nginx
+      command: "docker exec nginx-lb service nginx reload"
